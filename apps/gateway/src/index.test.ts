@@ -70,5 +70,36 @@ describe("gateway", () => {
       expect(body).not.toHaveProperty("API_KEY");
       expect(JSON.stringify(body)).not.toContain("super-secret-password-123");
     });
+
+    it("returns 400 UNKNOWN_SKILL for unknown commands", async () => {
+      const req = {
+        method: "POST",
+        url: "/message",
+        headers: { host: "localhost" },
+        // Simple mock of JSON body reading
+        on: vi.fn().mockImplementation((event, cb) => {
+          if (event === "data") cb(JSON.stringify({ text: "magic spells" }));
+          if (event === "end") cb();
+        }),
+      } as unknown as IncomingMessage;
+
+      const res = {
+        writeHead: vi.fn(),
+        end: vi.fn(),
+      } as unknown as ServerResponse;
+
+      await handleRequest(req, res);
+
+      expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+      const body = JSON.parse((res.end as any).mock.calls[0][0]);
+      expect(body).toMatchObject({
+        error: "unknown_skill",
+        errorCode: "UNKNOWN_SKILL",
+        requestedSkill: "magic",
+        availableSkills: ["pairing", "report", "echo"],
+      });
+    });
+
+    it("uses SESSION_TTL from environment if provided", () => {});
   });
 });

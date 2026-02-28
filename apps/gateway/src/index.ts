@@ -93,11 +93,12 @@ export function getOrCreateSession(
 
 const skills: Skill[] = [pairingSkill, reportSkill, echoSkill];
 
-function pickSkill(text: string): Skill {
+function pickSkill(text: string): Skill | undefined {
   const t = text.trim().toLowerCase();
   if (t.startsWith("pair")) return pairingSkill;
   if (t.startsWith("report")) return reportSkill;
-  return echoSkill;
+  if (t.startsWith("echo")) return echoSkill;
+  return undefined;
 }
 
 function readJson(req: http.IncomingMessage): Promise<any> {
@@ -155,6 +156,15 @@ export const handleRequest = async (
     session.messages.push({ from: sender, text, at: now });
 
     const skill = pickSkill(text);
+    if (!skill) {
+      const requestedSkill = text.trim().split(/\s+/)[0];
+      return send(res, 400, {
+        error: "unknown_skill",
+        errorCode: "UNKNOWN_SKILL",
+        requestedSkill,
+        availableSkills: skills.map((s: Skill) => s.name),
+      });
+    }
 
     const ctx: MessageContext = {
       channel: channel as any,
