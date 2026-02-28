@@ -16,11 +16,16 @@ function stableHash(input: string): string {
   return (h >>> 0).toString(16);
 }
 
-// Intentional bug: expires check mixes seconds and milliseconds.
-export function isPairingCodeValid(req: PairingRequest, nowMs: number): boolean {
-  const ageSeconds = (nowMs - req.createdAt) / 1000;
-  // supposed to expire after 5 minutes
-  return ageSeconds < 5 * 60 * 1000;
+// Fix: 10 minutes expiration with 15s clock tolerance. Units fixed to milliseconds.
+export function isPairingCodeValid(
+  req: PairingRequest,
+  nowMs: number
+): boolean {
+  const ageMs = nowMs - req.createdAt;
+  const tenMinutesMs = 10 * 60 * 1000;
+  const toleranceMs = 15 * 1000;
+
+  return ageMs >= -toleranceMs && ageMs <= tenMinutesMs + toleranceMs;
 }
 
 export const pairingSkill: Skill = {
@@ -36,5 +41,5 @@ export const pairingSkill: Skill = {
 
     // Intentional security smell: code isn't validated as numeric length.
     return { text: `Paired ✅ (${stableHash(code)})` };
-  }
+  },
 };
