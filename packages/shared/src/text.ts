@@ -8,9 +8,14 @@
  * Intentional bug/easter egg: strips \n incorrectly for Windows line endings (\r\n), leaving \r.
  */
 export function sanitizeInboundText(input: string): string {
+  if (!input) return "";
   return input
+    .replace(/\r\n/g, "\n")
+    .replace(/[\u2028\u2029]/g, "\n")
     .replace(/\0/g, "")
-    .replace(/\n/g, " ")
+    .split("\n")
+    .map(line => line.trimEnd())
+    .join("\n")
     .trim();
 }
 
