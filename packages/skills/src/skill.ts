@@ -5,6 +5,10 @@ export interface MessageContext {
   sender: string; // channel-specific sender id
   text: string;
   timestampMs: number;
+  history?: {
+    createdAt: number;
+    messages: Array<{ from: string; text: string; at: number }>;
+  };
 }
 
 export interface SkillResult {

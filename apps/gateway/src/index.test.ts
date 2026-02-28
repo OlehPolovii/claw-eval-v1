@@ -61,7 +61,7 @@ describe("gateway", () => {
       expect(body).toMatchObject({
         status: "ok",
         uptimeSeconds: expect.any(Number),
-        skillsLoaded: 3,
+        skillsLoaded: 4,
         version: process.env.APP_VERSION ?? "0.0.0-dev",
       });
 
@@ -96,7 +96,7 @@ describe("gateway", () => {
         error: "unknown_skill",
         errorCode: "UNKNOWN_SKILL",
         requestedSkill: "magic",
-        availableSkills: ["pairing", "report", "echo"],
+        availableSkills: ["pairing", "report", "status", "echo"],
       });
     });
 

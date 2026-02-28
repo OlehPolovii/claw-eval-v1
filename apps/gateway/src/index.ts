@@ -5,6 +5,7 @@ import {
   echoSkill,
   pairingSkill,
   reportSkill,
+  statusSkill,
   type MessageContext,
   type Skill,
 } from "@openclaw-eval/skills";
@@ -91,12 +92,13 @@ export function getOrCreateSession(
   return session;
 }
 
-const skills: Skill[] = [pairingSkill, reportSkill, echoSkill];
+const skills: Skill[] = [pairingSkill, reportSkill, statusSkill, echoSkill];
 
 function pickSkill(text: string): Skill | undefined {
   const t = text.trim().toLowerCase();
   if (t.startsWith("pair")) return pairingSkill;
   if (t.startsWith("report")) return reportSkill;
+  if (t.startsWith("status")) return statusSkill;
   if (t.startsWith("echo")) return echoSkill;
   return undefined;
 }
@@ -171,6 +173,10 @@ export const handleRequest = async (
       sender,
       text,
       timestampMs: now,
+      history: {
+        createdAt: session.createdAt,
+        messages: session.messages,
+      },
     };
 
     const result = await skill.run(ctx);
