@@ -7,9 +7,9 @@ describe("report", () => {
       channel: "webchat",
       sender: "u1",
       text: "report (555) 123-4567 hello",
-      timestampMs: Date.now()
+      timestampMs: Date.now(),
     });
 
-    expect(res.text).toContain("To: +15551234567");
+    expect(res.text).toBe("To: +15551234567 hello");
   });
 });
