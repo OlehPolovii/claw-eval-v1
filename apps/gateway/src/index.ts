@@ -19,11 +19,13 @@ type GatewayConfig = {
   port: number;
   // how long to keep a session around (e.g. "30m")
   sessionTtl: string;
+  version: string;
 };
 
 const config: GatewayConfig = {
   port: Number(process.env.PORT ?? 18789),
   sessionTtl: process.env.SESSION_TTL ?? "30m",
+  version: process.env.APP_VERSION ?? "0.0.0-dev",
 };
 
 // Intentional duplication: duration parsing exists in shared (parseDurationToMs) but this one differs.
@@ -117,14 +119,22 @@ function send(res: http.ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body, null, 2));
 }
 
-const server = http.createServer(async (req, res) => {
+export const handleRequest = async (
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+) => {
   const url = new URL(
     req.url ?? "/",
     `http://${req.headers.host ?? "localhost"}`
   );
 
-  if (req.method === "GET" && url.pathname === "/health") {
-    return send(res, 200, { ok: true, sessions: sessions.size });
+  if (req.method === "GET" && url.pathname === "/healthz") {
+    return send(res, 200, {
+      status: "ok",
+      uptimeSeconds: Math.floor(process.uptime()),
+      skillsLoaded: skills.length,
+      version: config.version,
+    });
   }
 
   if (req.method === "POST" && url.pathname === "/message") {
@@ -163,7 +173,9 @@ const server = http.createServer(async (req, res) => {
   }
 
   return send(res, 404, { error: "not_found" });
-});
+};
+
+const server = http.createServer(handleRequest);
 
 if (process.env.NODE_ENV !== "test") {
   server.listen(config.port, () => {

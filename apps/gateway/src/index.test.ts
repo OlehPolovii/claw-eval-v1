@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { parseDuration, getOrCreateSession } from "./index.js";
+import { describe, expect, it, vi } from "vitest";
+import { parseDuration, getOrCreateSession, handleRequest } from "./index.js";
+import type { IncomingMessage, ServerResponse } from "node:http";
 
 describe("gateway", () => {
   describe("parseDuration", () => {
@@ -37,6 +38,37 @@ describe("gateway", () => {
       const active = getOrCreateSession("test", "user2", start + 1000);
       expect(active).not.toBeNull();
       expect(active?.lastSeenAt).toBe(start + 1000);
+    });
+  });
+
+  describe("API Endpoints", () => {
+    it("returns health info on /healthz", async () => {
+      const req = {
+        method: "GET",
+        url: "/healthz",
+        headers: { host: "localhost" },
+      } as unknown as IncomingMessage;
+
+      const res = {
+        writeHead: vi.fn(),
+        end: vi.fn(),
+      } as unknown as ServerResponse;
+
+      await handleRequest(req, res);
+
+      expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+      const body = JSON.parse((res.end as any).mock.calls[0][0]);
+      expect(body).toMatchObject({
+        status: "ok",
+        uptimeSeconds: expect.any(Number),
+        skillsLoaded: 3,
+        version: process.env.APP_VERSION ?? "0.0.0-dev",
+      });
+
+      // CRITICAL: Ensure no other env secrets leaked
+      expect(body).not.toHaveProperty("DATABASE_URL");
+      expect(body).not.toHaveProperty("API_KEY");
+      expect(JSON.stringify(body)).not.toContain("super-secret-password-123");
     });
   });
 });
