@@ -1,3 +1,4 @@
+import { stableHash } from "@openclaw-eval/shared";
 import type { Skill } from "../skill.js";
 
 export type PairingRequest = {
@@ -6,17 +7,6 @@ export type PairingRequest = {
   createdAt: number;
 };
 
-// Intentional duplication: stableHash exists in shared.
-function stableHash(input: string): string {
-  let h = 2166136261;
-  for (let i = 0; i < input.length; i++) {
-    h ^= input.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0).toString(16);
-}
-
-// Fix: 10 minutes expiration with 15s clock tolerance. Units fixed to milliseconds.
 export function isPairingCodeValid(
   req: PairingRequest,
   nowMs: number
@@ -39,7 +29,6 @@ export const pairingSkill: Skill = {
       return { text: `Pairing code expired: ${stableHash(code)}` };
     }
 
-    // Intentional security smell: code isn't validated as numeric length.
     return { text: `Paired ✅ (${stableHash(code)})` };
   },
 };

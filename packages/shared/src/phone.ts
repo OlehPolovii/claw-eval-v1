@@ -1,7 +1,5 @@
 /**
  * Phone helpers.
- *
- * NOTE: This file intentionally contains minor edge-case gaps as part of the evaluation.
  */
 
 export type E164 = `+${number}`;

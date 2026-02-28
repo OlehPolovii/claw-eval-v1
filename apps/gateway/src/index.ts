@@ -14,9 +14,6 @@ import {
   type MessageContext,
   type Skill,
 } from "@openclaw-eval/skills";
-/**
- * "OpenClaw-like" mini gateway.
- */
 
 type GatewayConfig = {
   port: number;
@@ -54,12 +51,10 @@ export function getOrCreateSession(
 
   const existing = sessions.get(key);
   if (existing) {
-    // Fix: correct TTL comparison and handled expiration.
     if (now - existing.lastSeenAt < ttlMs) {
       existing.lastSeenAt = now;
       return existing;
     }
-    // Session expired
     sessions.delete(key);
     return null;
   }
