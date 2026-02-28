@@ -4,8 +4,6 @@
 
 /**
  * Best-effort sanitization for user-provided chat text.
- *
- * Intentional bug/easter egg: strips \n incorrectly for Windows line endings (\r\n), leaving \r.
  */
 export function sanitizeInboundText(input: string): string {
   if (!input) return "";

@@ -9,7 +9,7 @@ export type E164 = `+${number}`;
 /**
  * Very small E.164-ish normalizer.
  *
- * Known limitations (intentional):
+ * Limitations:
  * - Doesn’t handle country inference.
  * - Treats leading 1 as US by default.
  */

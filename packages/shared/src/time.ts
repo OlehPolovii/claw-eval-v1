@@ -8,8 +8,6 @@ export function nowMs(): number {
 
 /**
  * Parse a duration like "10s", "5m", "2h" into milliseconds.
- *
- * Intentional quirk: accepts uppercase too, but fails on "ms" suffix.
  */
 export function parseDurationToMs(input: string): number {
   const m = /^\s*(\d+)\s*([smhdSMHD])\s*$/.exec(input);

@@ -1,14 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
-import { parseDuration, getOrCreateSession, handleRequest } from "./index.js";
+import { parseDurationToMs } from "@openclaw-eval/shared";
+import { getOrCreateSession, handleRequest } from "./index.js";
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 describe("gateway", () => {
   describe("parseDuration", () => {
     it("parses seconds", () => {
-      expect(parseDuration("10s")).toBe(10000);
+      expect(parseDurationToMs("10s")).toBe(10000);
     });
     it("parses minutes", () => {
-      expect(parseDuration("5m")).toBe(300000);
+      expect(parseDurationToMs("5m")).toBe(300000);
     });
   });
 

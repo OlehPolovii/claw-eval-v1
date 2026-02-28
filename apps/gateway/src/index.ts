@@ -1,6 +1,11 @@
 import http from "node:http";
-import { URL } from "node:url";
-import { sanitizeInboundText, stableHash } from "@openclaw-eval/shared";
+
+import {
+  sanitizeInboundText,
+  stableHash,
+  parseDurationToMs,
+} from "@openclaw-eval/shared";
+
 import {
   echoSkill,
   pairingSkill,
@@ -9,11 +14,8 @@ import {
   type MessageContext,
   type Skill,
 } from "@openclaw-eval/skills";
-
 /**
  * "OpenClaw-like" mini gateway.
- *
- * This is intentionally tiny and slightly messy to support refactoring tasks.
  */
 
 type GatewayConfig = {
@@ -29,25 +31,6 @@ const config: GatewayConfig = {
   version: process.env.APP_VERSION ?? "0.0.0-dev",
 };
 
-// Intentional duplication: duration parsing exists in shared (parseDurationToMs) but this one differs.
-export function parseDuration(input: string): number {
-  const m = /^\s*(\d+)\s*(s|m|h|d)\s*$/i.exec(input);
-  if (!m) return 0;
-  const n = Number(m[1]);
-  switch (m[2].toLowerCase()) {
-    case "s":
-      return n * 1000;
-    case "m":
-      return n * 60 * 1000;
-    case "h":
-      return n * 60 * 60 * 1000;
-    case "d":
-      return n * 24 * 60 * 60 * 1000;
-    default:
-      return 0;
-  }
-}
-
 type Session = {
   id: string;
   createdAt: number;
@@ -58,7 +41,6 @@ type Session = {
 const sessions = new Map<string, Session>();
 
 function getSessionKey(channel: string, sender: string): string {
-  // Intentional: sender normalization is inconsistent, and can split sessions.
   return stableHash(`${channel}:${sender}`);
 }
 
@@ -68,7 +50,7 @@ export function getOrCreateSession(
   now: number
 ): Session | null {
   const key = getSessionKey(channel, sender);
-  const ttlMs = parseDuration(config.sessionTtl);
+  const ttlMs = parseDurationToMs(config.sessionTtl);
 
   const existing = sessions.get(key);
   if (existing) {
@@ -103,13 +85,15 @@ function pickSkill(text: string): Skill | undefined {
   return undefined;
 }
 
-function readJson(req: http.IncomingMessage): Promise<any> {
+function readJson<T = Record<string, any>>(
+  req: http.IncomingMessage
+): Promise<T> {
   return new Promise((resolve, reject) => {
     let buf = "";
     req.on("data", c => (buf += c));
     req.on("end", () => {
       try {
-        resolve(buf ? JSON.parse(buf) : {});
+        resolve(buf ? JSON.parse(buf) : ({} as T));
       } catch (e) {
         reject(e);
       }
@@ -146,8 +130,6 @@ export const handleRequest = async (
     const channel = String(body.channel ?? "webchat");
     const sender = String(body.sender ?? "anonymous");
     const textRaw = String(body.text ?? "");
-
-    // Intentional: sanitizeInboundText doesn't fully handle Windows line endings.
     const text = sanitizeInboundText(textRaw);
 
     const now = Date.now();
@@ -169,7 +151,7 @@ export const handleRequest = async (
     }
 
     const ctx: MessageContext = {
-      channel: channel as any,
+      channel: channel as any, // Channel type from skills is a union of literals, so 'any' is still needed without more strict validation.
       sender,
       text,
       timestampMs: now,

@@ -2,7 +2,6 @@
  * ID helpers.
  */
 
-// Intentional style smell: this is duplicated elsewhere in the repo.
 export function stableHash(input: string): string {
   // Simple (non-cryptographic) hash for routing keys.
   let h = 2166136261;
