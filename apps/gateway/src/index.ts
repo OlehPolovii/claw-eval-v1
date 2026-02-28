@@ -1,7 +1,13 @@
 import http from "node:http";
 import { URL } from "node:url";
 import { sanitizeInboundText, stableHash } from "@openclaw-eval/shared";
-import { echoSkill, pairingSkill, reportSkill, type MessageContext, type Skill } from "@openclaw-eval/skills";
+import {
+  echoSkill,
+  pairingSkill,
+  reportSkill,
+  type MessageContext,
+  type Skill,
+} from "@openclaw-eval/skills";
 
 /**
  * "OpenClaw-like" mini gateway.
@@ -17,11 +23,11 @@ type GatewayConfig = {
 
 const config: GatewayConfig = {
   port: Number(process.env.PORT ?? 18789),
-  sessionTtl: process.env.SESSION_TTL ?? "30m"
+  sessionTtl: process.env.SESSION_TTL ?? "30m",
 };
 
 // Intentional duplication: duration parsing exists in shared (parseDurationToMs) but this one differs.
-function parseDuration(input: string): number {
+export function parseDuration(input: string): number {
   const m = /^\s*(\d+)\s*(s|m|h|d)\s*$/i.exec(input);
   if (!m) return 0;
   const n = Number(m[1]);
@@ -53,24 +59,31 @@ function getSessionKey(channel: string, sender: string): string {
   return stableHash(`${channel}:${sender}`);
 }
 
-function getOrCreateSession(channel: string, sender: string, now: number): Session {
+export function getOrCreateSession(
+  channel: string,
+  sender: string,
+  now: number
+): Session | null {
   const key = getSessionKey(channel, sender);
   const ttlMs = parseDuration(config.sessionTtl);
 
   const existing = sessions.get(key);
   if (existing) {
-    // Intentional easter egg: TTL comparison reversed; sessions will never expire.
+    // Fix: correct TTL comparison and handled expiration.
     if (now - existing.lastSeenAt < ttlMs) {
       existing.lastSeenAt = now;
       return existing;
     }
+    // Session expired
+    sessions.delete(key);
+    return null;
   }
 
   const session: Session = {
     id: key,
     createdAt: now,
     lastSeenAt: now,
-    messages: []
+    messages: [],
   };
   sessions.set(key, session);
   return session;
@@ -88,7 +101,7 @@ function pickSkill(text: string): Skill {
 function readJson(req: http.IncomingMessage): Promise<any> {
   return new Promise((resolve, reject) => {
     let buf = "";
-    req.on("data", (c) => (buf += c));
+    req.on("data", c => (buf += c));
     req.on("end", () => {
       try {
         resolve(buf ? JSON.parse(buf) : {});
@@ -105,7 +118,10 @@ function send(res: http.ServerResponse, status: number, body: unknown): void {
 }
 
 const server = http.createServer(async (req, res) => {
-  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  const url = new URL(
+    req.url ?? "/",
+    `http://${req.headers.host ?? "localhost"}`
+  );
 
   if (req.method === "GET" && url.pathname === "/health") {
     return send(res, 200, { ok: true, sessions: sessions.size });
@@ -123,6 +139,9 @@ const server = http.createServer(async (req, res) => {
 
     const now = Date.now();
     const session = getOrCreateSession(channel, sender, now);
+    if (!session) {
+      return send(res, 401, { error: "session_expired" });
+    }
     session.messages.push({ from: sender, text, at: now });
 
     const skill = pickSkill(text);
@@ -131,7 +150,7 @@ const server = http.createServer(async (req, res) => {
       channel: channel as any,
       sender,
       text,
-      timestampMs: now
+      timestampMs: now,
     };
 
     const result = await skill.run(ctx);
@@ -139,16 +158,20 @@ const server = http.createServer(async (req, res) => {
     return send(res, 200, {
       sessionId: session.id,
       skill: skill.name,
-      result
+      result,
     });
   }
 
   return send(res, 404, { error: "not_found" });
 });
 
-server.listen(config.port, () => {
-  console.log(`openclaw-eval gateway listening on http://127.0.0.1:${config.port}`);
-  console.log(
-    `try: curl -s -X POST http://127.0.0.1:${config.port}/message -H 'content-type: application/json' -d '{"channel":"webchat","sender":"u1","text":"report (555) 123-4567 hello"}' | jq`
-  );
-});
+if (process.env.NODE_ENV !== "test") {
+  server.listen(config.port, () => {
+    console.log(
+      `openclaw-eval gateway listening on http://127.0.0.1:${config.port}`
+    );
+    console.log(
+      `try: curl -s -X POST http://127.0.0.1:${config.port}/message -H 'content-type: application/json' -d '{"channel":"webchat","sender":"u1","text":"report (555) 123-4567 hello"}' | jq`
+    );
+  });
+}
